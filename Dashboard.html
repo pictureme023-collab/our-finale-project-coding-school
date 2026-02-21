@@ -1,0 +1,761 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Dashboard - Hospital Admin</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+  
+  <style>
+    /* Responsive sidebar styles */
+    .sidebar-fixed {
+      position: fixed;
+      left: 0;
+      top: 0;
+      height: 100vh;
+      width: 14rem;
+      z-index: 40;
+      transition: transform 0.3s ease;
+    }
+    .main-content {
+      margin-left: 14rem;
+      min-height: 100vh;
+      transition: margin-left 0.3s ease;
+    }
+    @media (max-width: 768px) {
+      .sidebar-fixed {
+        transform: translateX(-100%);
+      }
+      .sidebar-fixed.mobile-visible {
+        transform: translateX(0);
+      }
+      .main-content {
+        margin-left: 0;
+      }
+      .sidebar-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 39;
+      }
+      .sidebar-overlay.active {
+        display: block;
+      }
+    }
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-800 select-none font-serif">
+  <!-- Loading Spinner -->
+  <div id="loadingSpinner" class="fixed inset-0 bg-white flex items-center justify-center z-50">
+    <div class="text-center">
+      <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
+        <i class="fas fa-spinner fa-spin text-2xl text-blue-600"></i>
+      </div>
+      <p class="text-gray-600">Loading dashboard...</p>
+    </div>
+  </div>
+
+  <!-- Dashboard Content - Hidden by default until authentication verified -->
+  <div id="dashboardContent" class="hidden">
+    <!-- Sidebar overlay for mobile -->
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+    <div class="flex">
+      <!-- Sidebar -->
+      <aside id="sidebar" class="sidebar-fixed bg-gradient-to-b from-blue-500 to-blue-600 text-white flex flex-col shadow-xl">
+        <div class="text-xl font-bold p-6 border-b border-blue-400 f bg-blue-600">
+          <div class="flex items-center">
+            <span>Hospital Admin</span>
+          </div>
+        </div>
+        
+        <!-- Navigation Menu -->
+        <nav class="flex-1 p-5 space-y-3">
+          <!-- Logout Button -->
+          <a href="#" id="logoutBtn" class="flex items-center p-3 rounded-xl hover:bg-blue-400 transition-all duration-200 text-red-100 bg-blue-700/30">
+            <i class="fa-solid fa-right-from-bracket text-xl mr-3"></i>
+            <span class="font-medium">Logout</span>
+          </a>
+            
+          <a href="/Dashboard/maternity.html" class="flex items-center p-3 rounded-xl hover:bg-blue-400 transition-all duration-200 bg-white/10">
+            <i class="fa-solid fa-user-injured text-yellow-400 text-2xl mr-3"></i>
+            <span class="font-medium">Maternity</span>
+          </a>
+
+          <!-- Emergency -->
+          <a href="./Dashboard/Emergency2.html" class="flex items-center p-3 rounded-xl hover:bg-blue-400 transition-all duration-200 bg-white/10">
+            <i class="fa-solid fa-truck-medical text-yellow-400 text-2xl mr-3"></i>
+            <span class="font-medium">Emergency</span>
+          </a>
+
+          <!-- Vaccination -->
+          <a href="./Dashboard/vaccination2.html" class="flex items-center p-3 rounded-xl hover:bg-blue-400 transition-all duration-200 bg-white/10">
+            <i class="fa-solid fa-syringe text-yellow-400 text-2xl mr-3"></i>
+            <span class="font-medium">Vaccination</span>
+          </a>
+          
+          <!-- mental -->
+          <a href="/Dashboard/mental heath.html" class="flex items-center p-3 rounded-xl hover:bg-blue-400 transition-all duration-200 bg-white/10">
+            <i class="fa-solid fa-head-side-brain mr-2 text-yellow-400 text-2x"></i>
+            <span class="font-medium">Mental Health</span>
+          </a>
+                
+          <!-- NCD -->
+          <a href="/Dashboard/NCD_Dashboard.html" class="flex items-center p-3 rounded-xl hover:bg-blue-400 transition-all duration-200 bg-white/10">
+            <i class="fas fa-heartbeat mr-2 text-yellow-400 text-2xl"></i> 
+            <span class="font-medium">NCD</span>
+          </a>
+          
+          <!-- Disability -->
+          <a href="./Dashboard/Disability2.html" class="flex items-center p-3 rounded-xl hover:bg-blue-400 transition-all duration-200 bg-white/10">
+            <i class="fa-solid fa-wheelchair text-yellow-400 text-2xl mr-3"></i>
+            <span class="font-medium">Disability</span>
+          </a>
+    
+          <a href="/Dashboard/complain_Dashboard.html" class="flex items-center p-3 rounded-xl hover:bg-blue-400 transition-all duration-200 bg-white/10">
+            <i class="fas fa-headset mr-2 text-yellow-400 text-2xl"></i>
+            <span class="font-medium">Complain</span>
+          </a>
+        </nav>
+        
+        <div class="p-4 border-t border-blue-400 bg-blue-600/50 rounded-br-3xl">
+          <div class="text-sm text-blue-100 text-center">
+            <i class="fa-solid fa-shield-heart mr-2"></i>
+            Secure System
+          </div>
+        </div>
+      </aside>
+      
+      <!-- Main Content -->
+      <main class="main-content w-full">
+        <header class="bg-white shadow-md sticky top-0 z-30">
+          <div class="container mx-auto px-4">
+            <div class="flex justify-between items-center py-4">
+              <div class="flex items-center">
+                <!-- Sidebar toggle button for mobile -->
+                <button id="sidebar-toggle" class="md:hidden text-gray-600 focus:outline-none mr-4">
+                  <i class="fas fa-bars text-xl"></i>
+                </button>
+                <span class="text-2xl font-bold text-blue-600"> 
+                  <a href="/index.html">🏥 MCH</a> Patients and Births Dashboard
+                </span>
+              </div>
+              
+              <button id="mobile-menu-button" class="md:hidden text-gray-600 focus:outline-none">
+                <i class="fas fa-ellipsis-v text-xl"></i>
+              </button>
+              
+              <nav id="nav-links" class="hidden md:flex items-center space-x-6">
+                <a href="#Statistic" class="text-gray-700 hover:text-blue-600 transition duration-300">Statistics</a>
+                <a href="/Services/paitents-Services.html" class="text-gray-700 hover:text-blue-600 transition duration-300">Patients Registration</a>
+                <a href="/Services/Briths Services.html" class="text-gray-700 hover:text-blue-600 transition duration-300">Birth Registration</a>
+              </nav>
+            </div>
+            
+            <div id="mobile-menu" class="hidden md:hidden py-4 border-t border-gray-200">
+              <div class="flex flex-col space-y-4">
+                <a href="#Statistic" class="text-gray-700 hover:text-blue-600">Statistics</a>
+                <a href="/Services/paitents-Services.html" class="text-gray-700 hover:text-blue-600 transition duration-300">Patients Registration</a>
+                <a href="/Services/Briths Services.html" class="text-gray-700 hover:text-blue-600 transition duration-300">Birth Registration</a>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <section id="dashboard" class="mx-auto px-4 py-8">
+          <h1 class="text-3xl font-bold m-8 text-blue-800">Dashboard Overview</h1>
+
+          <!-- Stats Cards -->
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 m-8">
+            <div class="stat-card bg-white rounded-xl shadow-lg p-6 text-center">
+              <h2 class="text-gray-500 font-semibold">Total Patients</h2>
+              <p id="totalPatients" class="text-4xl font-bold text-blue-700 mt-2">0</p>
+              <p class="text-sm text-gray-500 mt-1">Registered in system</p>
+            </div>
+            
+            <div class="bg-white rounded-2xl shadow-lg p-6 text-center">
+              <h2 class="text-gray-500 font-semibold">Birth Records</h2>
+              <p id="totalBirths" class="text-4xl font-bold text-green-600 mt-2">0</p>
+              <p class="text-sm text-gray-500 mt-1">Births registered</p>
+            </div>
+            
+            <div class="bg-white rounded-2xl shadow-lg p-6 text-center">
+              <h2 class="text-gray-500 font-semibold">Male Patients</h2>
+              <p id="malePatients" class="text-4xl font-bold text-indigo-600 mt-2">0</p>
+              <p class="text-sm text-gray-500 mt-1"><span id="malePercent">0%</span> of total</p>
+            </div>
+            
+            <div class="bg-white rounded-2xl shadow-lg p-6 text-center">
+              <h2 class="text-gray-500 font-semibold">Female Patients</h2>
+              <p id="femalePatients" class="text-4xl font-bold text-pink-600 mt-2">0</p>
+              <p class="text-sm text-gray-500 mt-1"><span id="femalePercent">0%</span> of total</p>
+            </div>
+          </div>
+
+          <!-- Recent Activity -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8 m-8">
+            <div class="bg-white rounded-2xl shadow-lg p-6">
+              <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold text-gray-800">Recent Patients</h2>
+                <span class="bg-blue-100 text-blue-800 text-sm px-3 py-1 rounded-full" id="recentPatientsCount">0</span>
+              </div>
+              <div id="recentPatients" class="space-y-3 max-h-80 overflow-y-auto">
+                <!-- Recent patients will be loaded here -->
+                <div class="text-center text-gray-500 py-8">
+                  <i class="fas fa-users text-4xl mb-2 opacity-50"></i>
+                  <p>No patients registered yet</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="bg-white rounded-2xl shadow-lg p-6">
+              <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold text-gray-800">Recent Births</h2>
+                <span class="bg-green-100 text-green-800 text-sm px-3 py-1 rounded-full" id="recentBirthsCount">0</span>
+              </div>
+              <div id="recentBirths" class="space-y-3 max-h-80 overflow-y-auto">
+                <!-- Recent births will be loaded here -->
+                <div class="text-center text-gray-500 py-8">
+                  <i class="fas fa-baby text-4xl mb-2 opacity-50"></i>
+                  <p>No births registered yet</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Charts -->
+          <div id="Statistic" class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8 m-8">
+            <div class="bg-white rounded-2xl shadow-lg p-6">
+              <h2 class="text-lg font-semibold mb-4 text-gray-800">Patients by Gender</h2>
+              <canvas id="genderChart" height="250"></canvas>
+            </div>
+            
+            <div class="bg-white rounded-2xl shadow-lg p-6">
+              <h2 class="text-lg font-semibold mb-4 text-gray-800">Birth Gender Ratio</h2>
+              <canvas id="birthChart" height="250"></canvas>
+            </div>
+            
+            <div class="bg-white rounded-2xl shadow-lg p-6 lg:col-span-2">
+              <h2 class="text-lg font-semibold mb-4 text-gray-800">Monthly Registration Trends</h2>
+              <canvas id="trendChart" height="120"></canvas>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Dashboard Script -->
+  <script>
+    // Firebase Configuration (same as login)
+    const firebaseConfig = {
+      apiKey: "AIzaSyDt4vs7S3nckO8xxfp1_axHZ76J0cz2qdg",
+      authDomain: "mahamahospital.firebaseapp.com",
+      databaseURL: "https://mahamahospital-default-rtdb.firebaseio.com",
+      projectId: "mahamahospital",
+      storageBucket: "mahamahospital.firebasestorage.app",
+      messagingSenderId: "256305692002",
+      appId: "1:256305692002:web:cfef26992264204be9803b"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const database = firebase.database();
+
+    // Chart instances
+    let genderChart, birthChart, trendChart;
+
+    // Authentication check
+    auth.onAuthStateChanged((user) => {
+      const loadingSpinner = document.getElementById('loadingSpinner');
+      const dashboardContent = document.getElementById('dashboardContent');
+      
+      if (user) {
+        // User is logged in
+        console.log('User authenticated:', user.email);
+        
+        // Show user email in sidebar
+        const userEmailElement = document.getElementById('userEmail');
+        if (userEmailElement) {
+          userEmailElement.textContent = user.email;
+        }
+        
+        // Hide loading spinner and show dashboard
+        setTimeout(() => {
+          loadingSpinner.classList.add('hidden');
+          dashboardContent.classList.remove('hidden');
+          initializeDashboard();
+        }, 500);
+        
+      } else {
+        // User is not logged in, redirect to login page
+        console.log('User not authenticated, redirecting to login...');
+        window.location.href = 'login.html';
+      }
+    });
+
+    // Logout functionality
+    document.getElementById('logoutBtn').addEventListener('click', function(e) {
+      e.preventDefault();
+      
+      // Show confirmation dialog
+   {
+        auth.signOut().then(() => {
+          console.log('User logged out');
+          // Redirect happens automatically via auth state listener
+        }).catch((error) => {
+          console.error('Logout error:', error);
+        });
+      }
+    });
+
+    // Dashboard Functions
+    class DashboardManager {
+      constructor() {
+        this.patientsRef = database.ref('patients');
+        this.birthsRef = database.ref('births');
+        this.patients = [];
+        this.births = [];
+      }
+
+      // Load all data
+      async loadAllData() {
+        await this.loadPatients();
+        await this.loadBirths();
+        this.updateDashboard();
+        this.setupRealTimeListeners();
+      }
+
+      // Load patients data
+      async loadPatients() {
+        try {
+          const snapshot = await this.patientsRef.once('value');
+          const patientsData = snapshot.val();
+          
+          if (patientsData) {
+            this.patients = Object.entries(patientsData).map(([id, patient]) => ({
+              id,
+              ...patient
+            }));
+          } else {
+            this.patients = [];
+          }
+        } catch (error) {
+          console.error('Error loading patients:', error);
+          this.patients = [];
+        }
+      }
+
+      // Load births data
+      async loadBirths() {
+        try {
+          const snapshot = await this.birthsRef.once('value');
+          const birthsData = snapshot.val();
+          
+          if (birthsData) {
+            this.births = Object.entries(birthsData).map(([id, birth]) => ({
+              id,
+              ...birth
+            }));
+          } else {
+            this.births = [];
+          }
+        } catch (error) {
+          console.error('Error loading births:', error);
+          this.births = [];
+        }
+      }
+
+      // Setup real-time listeners
+      setupRealTimeListeners() {
+        // Real-time patient updates
+        this.patientsRef.on('value', (snapshot) => {
+          const patientsData = snapshot.val();
+          this.patients = patientsData ? Object.entries(patientsData).map(([id, patient]) => ({
+            id,
+            ...patient
+          })) : [];
+          this.updateDashboard();
+        });
+
+        // Real-time birth updates
+        this.birthsRef.on('value', (snapshot) => {
+          const birthsData = snapshot.val();
+          this.births = birthsData ? Object.entries(birthsData).map(([id, birth]) => ({
+            id,
+            ...birth
+          })) : [];
+          this.updateDashboard();
+        });
+      }
+
+      // Update dashboard with current data
+      updateDashboard() {
+        this.updateStatistics();
+        this.updateRecentActivity();
+        this.updateCharts();
+      }
+
+      // Update statistics cards
+      updateStatistics() {
+        const totalPatients = this.patients.length;
+        const totalBirths = this.births.length;
+        
+        const malePatients = this.patients.filter(p => 
+          (p.gender && p.gender.toLowerCase() === 'male') || 
+          (p.Gender && p.Gender.toLowerCase() === 'male')
+        ).length;
+        
+        const femalePatients = this.patients.filter(p => 
+          (p.gender && p.gender.toLowerCase() === 'female') || 
+          (p.Gender && p.Gender.toLowerCase() === 'female')
+        ).length;
+        
+        const malePercent = totalPatients > 0 ? Math.round((malePatients / totalPatients) * 100) : 0;
+        const femalePercent = totalPatients > 0 ? Math.round((femalePatients / totalPatients) * 100) : 0;
+
+        // Update DOM elements
+        document.getElementById('totalPatients').textContent = totalPatients;
+        document.getElementById('totalBirths').textContent = totalBirths;
+        document.getElementById('malePatients').textContent = malePatients;
+        document.getElementById('femalePatients').textContent = femalePatients;
+        document.getElementById('malePercent').textContent = `${malePercent}%`;
+        document.getElementById('femalePercent').textContent = `${femalePercent}%`;
+      }
+
+      // Update recent activity sections
+      updateRecentActivity() {
+        this.updateRecentPatients();
+        this.updateRecentBirths();
+      }
+
+      updateRecentPatients() {
+        const container = document.getElementById('recentPatients');
+        const countElement = document.getElementById('recentPatientsCount');
+        
+        const recentPatients = [...this.patients]
+          .sort((a, b) => {
+            const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+            const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+            return dateB - dateA;
+          })
+          .slice(0, 5);
+
+        countElement.textContent = recentPatients.length;
+
+        if (recentPatients.length === 0) {
+          container.innerHTML = `
+            <div class="text-center text-gray-500 py-8">
+              <i class="fas fa-users text-4xl mb-2 opacity-50"></i>
+              <p>No patients registered yet</p>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = recentPatients.map(patient => {
+          const name = patient.name || patient.Name || 'Unknown';
+          const age = patient.age || patient.Age || 'Unknown';
+          const gender = patient.gender || patient.Gender || 'Unknown';
+          const createdAt = patient.createdAt || 'N/A';
+          
+          return `
+          <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-blue-50 transition duration-200">
+            <div class="flex items-center">
+              <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                <i class="fas fa-user text-blue-600"></i>
+              </div>
+              <div>
+                <p class="font-semibold text-gray-800">${name}</p>
+                <p class="text-sm text-gray-600">${age} years • ${gender}</p>
+              </div>
+            </div>
+            <span class="text-xs text-gray-500">${this.formatDate(createdAt)}</span>
+          </div>
+        `}).join('');
+      }
+
+      updateRecentBirths() {
+        const container = document.getElementById('recentBirths');
+        const countElement = document.getElementById('recentBirthsCount');
+        
+        const recentBirths = [...this.births]
+          .sort((a, b) => {
+            const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+            const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+            return dateB - dateA;
+          })
+          .slice(0, 5);
+
+        countElement.textContent = recentBirths.length;
+
+        if (recentBirths.length === 0) {
+          container.innerHTML = `
+            <div class="text-center text-gray-500 py-8">
+              <i class="fas fa-baby text-4xl mb-2 opacity-50"></i>
+              <p>No births registered yet</p>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = recentBirths.map(birth => {
+          const babyName = birth.BabyName || birth.babyName || 'Unknown';
+          const gender = birth.Gender || birth.gender || 'Unknown';
+          const motherName = birth.MotherName || birth.motherName || 'Unknown';
+          const createdAt = birth.createdAt || 'N/A';
+          
+          return `
+          <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-green-50 transition duration-200">
+            <div class="flex items-center">
+              <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mr-3">
+                <i class="fas fa-baby text-green-600"></i>
+              </div>
+              <div>
+                <p class="font-semibold text-gray-800">${babyName}</p>
+                <p class="text-sm text-gray-600">${gender} • Mother: ${motherName}</p>
+              </div>
+            </div>
+            <span class="text-xs text-gray-500">${this.formatDate(createdAt)}</span>
+          </div>
+        `}).join('');
+      }
+
+      // Update charts
+      updateCharts() {
+        this.updateGenderChart();
+        this.updateBirthChart();
+        this.updateTrendChart();
+      }
+
+      updateGenderChart() {
+        const ctx = document.getElementById('genderChart').getContext('2d');
+        
+        if (genderChart) {
+          genderChart.destroy();
+        }
+
+        const maleCount = this.patients.filter(p => 
+          (p.gender && p.gender.toLowerCase() === 'male') || 
+          (p.Gender && p.Gender.toLowerCase() === 'male')
+        ).length;
+        
+        const femaleCount = this.patients.filter(p => 
+          (p.gender && p.gender.toLowerCase() === 'female') || 
+          (p.Gender && p.Gender.toLowerCase() === 'female')
+        ).length;
+        
+        const otherCount = this.patients.filter(p => {
+          const gender = (p.gender || p.Gender || '').toLowerCase();
+          return gender && gender !== 'male' && gender !== 'female';
+        }).length;
+
+        genderChart = new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels: ['Male', 'Female', 'Other'],
+            datasets: [{
+              data: [maleCount, femaleCount, otherCount],
+              backgroundColor: ['#4f46e5', '#ec4899', '#6b7280'],
+              borderWidth: 2,
+              borderColor: '#ffffff'
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: {
+                position: 'bottom'
+              }
+            }
+          }
+        });
+      }
+
+      updateBirthChart() {
+        const ctx = document.getElementById('birthChart').getContext('2d');
+        
+        if (birthChart) {
+          birthChart.destroy();
+        }
+
+        const maleBirths = this.births.filter(b => 
+          (b.gender && b.gender.toLowerCase() === 'male') || 
+          (b.Gender && b.Gender.toLowerCase() === 'male')
+        ).length;
+        
+        const femaleBirths = this.births.filter(b => 
+          (b.gender && b.gender.toLowerCase() === 'female') || 
+          (b.Gender && b.Gender.toLowerCase() === 'female')
+        ).length;
+
+        birthChart = new Chart(ctx, {
+          type: 'pie',
+          data: {
+            labels: ['Male', 'Female'],
+            datasets: [{
+              data: [maleBirths, femaleBirths],
+              backgroundColor: ['#60a5fa', '#f472b6'],
+              borderWidth: 2,
+              borderColor: '#ffffff'
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: {
+                position: 'bottom'
+              }
+            }
+          }
+        });
+      }
+
+      updateTrendChart() {
+        const ctx = document.getElementById('trendChart').getContext('2d');
+        
+        if (trendChart) {
+          trendChart.destroy();
+        }
+
+        const months = this.getLast6Months();
+        const patientTrends = this.getMonthlyData(this.patients, months);
+        const birthTrends = this.getMonthlyData(this.births, months);
+
+        trendChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: months,
+            datasets: [
+              {
+                label: 'Patients',
+                data: patientTrends,
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                tension: 0.4,
+                fill: true
+              },
+              {
+                label: 'Births',
+                data: birthTrends,
+                borderColor: '#10b981',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                tension: 0.4,
+                fill: true
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: {
+                position: 'top'
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true
+              }
+            }
+          }
+        });
+      }
+
+      // Utility functions
+      getLast6Months() {
+        const months = [];
+        for (let i = 5; i >= 0; i--) {
+          const date = new Date();
+          date.setMonth(date.getMonth() - i);
+          months.push(date.toLocaleString('default', { month: 'short' }));
+        }
+        return months;
+      }
+
+      getMonthlyData(data, months) {
+        const currentYear = new Date().getFullYear();
+        return months.map(month => {
+          return data.filter(item => {
+            const itemDate = new Date(item.createdAt || 0);
+            return itemDate.getFullYear() === currentYear && 
+                   itemDate.toLocaleString('default', { month: 'short' }) === month;
+          }).length;
+        });
+      }
+
+      formatDate(dateString) {
+        if (!dateString || dateString === 'N/A') return 'N/A';
+        try {
+          const date = new Date(dateString);
+          return date.toLocaleDateString();
+        } catch (e) {
+          return 'N/A';
+        }
+      }
+    }
+
+    // Initialize dashboard
+    let dashboardManager;
+
+    function initializeDashboard() {
+      // Initialize dashboard manager
+      dashboardManager = new DashboardManager();
+      dashboardManager.loadAllData();
+
+      // Mobile menu functionality
+      const mobileMenuButton = document.getElementById('mobile-menu-button');
+      const mobileMenu = document.getElementById('mobile-menu');
+      
+      if (mobileMenuButton && mobileMenu) {
+        mobileMenuButton.addEventListener('click', () => {
+          mobileMenu.classList.toggle('hidden');
+        });
+      }
+
+      // Sidebar toggle functionality for mobile
+      const sidebarToggle = document.getElementById('sidebar-toggle');
+      const sidebar = document.getElementById('sidebar');
+      const sidebarOverlay = document.getElementById('sidebar-overlay');
+      
+      if (sidebarToggle && sidebar && sidebarOverlay) {
+        sidebarToggle.addEventListener('click', () => {
+          sidebar.classList.toggle('mobile-visible');
+          sidebarOverlay.classList.toggle('active');
+        });
+
+        sidebarOverlay.addEventListener('click', () => {
+          sidebar.classList.remove('mobile-visible');
+          sidebarOverlay.classList.remove('active');
+        });
+
+        const sidebarLinks = sidebar.querySelectorAll('a');
+        sidebarLinks.forEach(link => {
+          link.addEventListener('click', () => {
+            if (window.innerWidth < 768) {
+              sidebar.classList.remove('mobile-visible');
+              sidebarOverlay.classList.remove('active');
+            }
+          });
+        });
+      }
+    }
+
+    // Export to CSV function
+    function exportToCSV() {
+      alert('Export functionality would be implemented here');
+    }
+  </script>
+</body>
+</html>
