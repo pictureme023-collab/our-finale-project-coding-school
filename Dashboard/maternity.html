@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maternity Care Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- EmailJS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    
+    <style>
+        /* Responsive sidebar styles */
+        .sidebar-fixed {
+            position: fixed;
+            left: 0;
+            top: 0;
+            height: 100vh;
+            width: 14rem;
+            z-index: 40;
+            transition: transform 0.3s ease;
+        }
+        
+        .main-content {
+            margin-left: 14rem;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar-fixed {
+                transform: translateX(-100%);
+            }
+            
+            .sidebar-fixed.mobile-visible {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+            
+            .sidebar-overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-color: rgba(0, 0, 0, 0.5);
+                z-index: 39;
+            }
+            
+            .sidebar-overlay.active {
+                display: block;
+            }
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            color: white;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            max-width: 400px;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        .notification.success {
+            background-color: #10b981;
+        }
+        
+        .notification.error {
+            background-color: #ef4444;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        .pregnancy-progress {
+            background: linear-gradient(90deg, #ec4899 var(--progress), #e5e7eb var(--progress));
+        }
+        
+        /* Loading overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            flex-direction: column;
+        }
+        
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Modal styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+        
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .modal-content {
+            background-color: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+            transform: translateY(-20px);
+            transition: transform 0.3s;
+        }
+        
+        .modal-overlay.active .modal-content {
+            transform: translateY(0);
+        }
+        
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-body {
+            padding: 20px;
+        }
+        
+        .modal-footer {
+            padding: 20px;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: flex-end;
+        }
+        
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        
+        .detail-label {
+            font-weight: 600;
+            color: #4b5563;
+        }
+        
+        .detail-value {
+            color: #111827;
+            text-align: right;
+            max-width: 60%;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 select-none font-serif">
+    <!-- Loading overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <p class="mt-4 text-gray-600">Loading dashboard...</p>
+    </div>
+
+    <!-- Appointment Details Modal -->
+    <div id="appointmentModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="text-xl font-bold text-gray-800">Appointment Details</h3>
+                <button onclick="dashboard.closeAppointmentDetails()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="appointmentDetails" class="space-y-4">
+                    <!-- Appointment details will be inserted here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="dashboard.closeAppointmentDetails()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar overlay for mobile -->
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+    <div class="flex">
+        <!-- Fixed Sidebar -->
+        <aside id="sidebar" class="sidebar-fixed bg-gradient-to-b from-blue-500 to-blue-600 text-white flex flex-col shadow-xl">
+            <div class="text-xl font-bold p-6 border-b border-blue-400 bg-blue-600">Hospital Admin</div>
+            
+            <!-- Navigation Menu -->
+            <nav class="flex-1 p-5 space-y-3">
+                <!-- Logout Button -->
+                <a href="#" id="logoutBtn" class="flex items-center p-3 rounded-xl hover:bg-blue-400 transition-all duration-200 text-red-100 bg-blue-700/30">
+                    <i class="fa-solid fa-right-from-bracket text-xl mr-3"></i>
+                    <span class="font-medium">Logout</span>
+                </a>
+                
+                <a href="../Dashboard.html" class="flex items-center p-3 rounded-xl hover:bg-blue-400 transition-all duration-200 bg-white/10">
+                    <i class="fa-solid fa-user text-yellow-400 text-2xl mr-3"></i>
+                    <span class="font-medium">Birth & Patient</span>
+                </a>
+   
+                <!-- Emergency -->
+                <a href="/Dashboard/Emergency2.html" class="flex items-center p-3 rounded-xl hover:bg-blue-400 transition-all duration-200 bg-white/10">
+                    <i class="fa-solid fa-truck-medical text-yellow-400 text-2xl mr-3"></i>
+                    <span class="font-medium">Emergency</span>
+                </a>
+
+                <!-- Vaccination -->
+                <a href="/Dashboard/vaccination2.html" class="flex items-center p-3 rounded-xl hover:bg-blue-400 transition-all duration-200 bg-white/10">
+                    <i class="fa-solid fa-syringe text-yellow-400 text-2xl mr-3"></i>
+                    <span class="font-medium">Vaccination</span>
+                </a>
+                
+                <!-- mental -->
+                <a href="/Dashboard/mental heath.html" class="flex items-center p-3 rounded-xl hover:bg-blue-400 transition-all duration-200 bg-white/10">
+                    <i class="fa-solid fa-head-side-brain mr-2 text-yellow-400 text-2x"></i>
+                    <span class="font-medium">Mental Health</span>
+                </a>
+                
+                <!-- NCD -->
+                <a href="/Dashboard/NCD_Dashboard.html" class="flex items-center p-3 rounded-xl hover:bg-blue-400 transition-all duration-200 bg-white/10">
+                    <i class="fas fa-heartbeat mr-2 text-yellow-400 text-2xl"></i> 
+                    <span class="font-medium">NCD</span>
+                </a>
+                
+                <!-- Disability -->
+                <a href="/Dashboard/Disability2.html" class="flex items-center p-3 rounded-xl hover:bg-blue-400 transition-all duration-200 bg-white/10">
+                    <i class="fa-solid fa-wheelchair text-yellow-400 text-2xl mr-3"></i>
+                    <span class="font-medium">Disability</span>
+                </a>
+                
+                <!-- Complain -->
+                <a href="/Dashboard/complain_Dashboard.html" class="flex items-center p-3 rounded-xl hover:bg-blue-400 transition-all duration-200 bg-white/10">
+                    <i class="fas fa-headset mr-2 text-yellow-400 text-2xl"></i>
+                    <span class="font-medium">Complain</span>
+                </a>
+            </nav>
+            
+            <div class="p-4 border-t border-blue-400 bg-blue-600/50 rounded-br-3xl">
+                <div class="text-sm text-blue-100 text-center">
+                    <i class="fa-solid fa-shield-heart mr-2"></i>
+                    Secure System
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content w-full">
+            <header class="bg-white shadow-md sticky top-0 z-30">
+                <div class="container mx-auto px-4">
+                    <div class="flex justify-between items-center py-4">
+                        <div class="flex items-center">
+                            <!-- Sidebar toggle button for mobile -->
+                            <button id="sidebar-toggle" class="md:hidden mr-4 text-gray-600 focus:outline-none">
+                                <i class="fas fa-bars text-xl"></i>
+                            </button>
+                            <span class="text-2xl font-bold text-blue-600"> <a href="/index.html">🏥 MCH</a>   Maternity Care Dashboard</span>
+                        </div>
+                        
+                        <button id="mobile-menu-button" class="md:hidden text-gray-600 focus:outline-none">
+                            <i class="fas fa-ellipsis-v text-xl"></i>
+                        </button>
+                        
+                        <nav id="nav-links" class="hidden md:flex items-center space-x-6">
+                            <a href="/Dashboard.html" class="text-gray-700 hover:text-blue-600 transition duration-300">Main Dashboard</a>
+                            <a href="/Services/Briths Services.html" class="text-gray-700 hover:text-blue-600 transition duration-300">Birth Registration</a>
+                        </nav>
+                    </div>
+                    
+                    <div id="mobile-menu" class="hidden md:hidden py-4 border-t border-gray-200">
+                        <div class="flex flex-col space-y-4">
+                            <a href="/Dashboard.html" class="text-gray-700 hover:text-blue-600">Main Dashboard</a>
+                            <a href="/Services/Briths Services.html" class="text-gray-700 hover:text-blue-600 transition duration-300">Birth Registration</a>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            
+            <section id="dashboard">
+                <h1 class="text-3xl font-bold mb-6 text-blue-800 m-8">Maternity Care Overview</h1>
+
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 m-8">
+                    <div class="bg-white rounded-2xl shadow-lg p-6 text-center">
+                        <h2 class="text-gray-500 font-semibold">Maternity Appointments</h2>
+                        <p id="totalAppointments" class="text-4xl font-bold text-pink-600 mt-2">0</p>
+                        <p class="text-sm text-gray-500 mt-1">Total bookings</p>
+                    </div>
+                    
+                    <div class="bg-white rounded-2xl shadow-lg p-6 text-center">
+                        <h2 class="text-gray-500 font-semibold">Active Pregnancies</h2>
+                        <p id="activePregnancies" class="text-4xl font-bold text-green-600 mt-2">0</p>
+                        <p class="text-sm text-gray-500 mt-1">Currently monitoring</p>
+                    </div>
+                    
+                    <div class="bg-white rounded-2xl shadow-lg p-6 text-center">
+                        <h2 class="text-gray-500 font-semibold">This Week's Appointments</h2>
+                        <p id="weeklyAppointments" class="text-4xl font-bold text-purple-600 mt-2">0</p>
+                        <p class="text-sm text-gray-500 mt-1">Scheduled visits</p>
+                    </div>
+                    
+                    <div class="bg-white rounded-2xl shadow-lg p-6 text-center">
+                        <h2 class="text-gray-500 font-semibold">Service Distribution</h2>
+                        <p id="serviceDistribution" class="text-4xl font-bold text-blue-600 mt-2">0</p>
+                        <p class="text-sm text-gray-500 mt-1">Different services</p>
+                    </div>
+                </div>
+
+                <!-- Pregnancy Progress Overview -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8 m-8">
+                    <div class="bg-white rounded-2xl shadow-lg p-6">
+                        <h2 class="text-xl font-semibold mb-4 text-gray-800">Pregnancy Week Distribution</h2>
+                        <div id="pregnancyWeeks" class="space-y-3 max-h-80 overflow-y-auto">
+                            <div class="text-center text-gray-500 py-8">
+                                <i class="fas fa-baby text-4xl mb-2 opacity-50"></i>
+                                <p>No pregnancy data available</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-2xl shadow-lg p-6">
+                        <h2 class="text-xl font-semibold mb-4 text-gray-800">Service Type Breakdown</h2>
+                        <canvas id="servicesChart" height="250"></canvas>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8 m-8">
+                    <div class="bg-white rounded-2xl shadow-lg p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-xl font-semibold text-gray-800">Recent Appointments</h2>
+                            <span class="bg-pink-100 text-pink-800 text-sm px-3 py-1 rounded-full" id="recentAppointmentsCount">0</span>
+                        </div>
+                        <div id="recentAppointments" class="space-y-3 max-h-80 overflow-y-auto">
+                            <div class="text-center text-gray-500 py-8">
+                                <i class="fas fa-calendar text-4xl mb-2 opacity-50"></i>
+                                <p>No recent appointments</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-2xl shadow-lg p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-xl font-semibold text-gray-800">Upcoming Appointments</h2>
+                            <span class="bg-green-100 text-green-800 text-sm px-3 py-1 rounded-full" id="upcomingAppointmentsCount">0</span>
+                        </div>
+                        <div id="upcomingAppointments" class="space-y-3 max-h-80 overflow-y-auto">
+                            <div class="text-center text-gray-500 py-8">
+                                <i class="fas fa-clock text-4xl mb-2 opacity-50"></i>
+                                <p>No upcoming appointments</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8 m-8">
+                    <div class="bg-white rounded-2xl shadow-lg p-6">
+                        <h2 class="text-lg font-semibold mb-4 text-gray-800">Monthly Appointments Trend</h2>
+                        <canvas id="monthlyTrendChart" height="250"></canvas>
+                    </div>
+                    
+                    <div class="bg-white rounded-2xl shadow-lg p-6">
+                        <h2 class="text-lg font-semibold mb-4 text-gray-800">Pregnancy Stage Distribution</h2>
+                        <canvas id="pregnancyStageChart" height="250"></canvas>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+<script src="/Dashboard/maternity.js"></script>
+
+</body>
+</html>
